@@ -7,6 +7,8 @@ defmodule SnitchApi.ProductsContext do
 
   import Ecto.Query, only: [from: 2, order_by: 2]
 
+  @allowables ~w(name taxon_id brand_id)
+
   @doc """
   List out all the products
   """
@@ -19,7 +21,7 @@ defmodule SnitchApi.ProductsContext do
   end
 
   @doc """
-  Gives the product with matched `slug` as {:ok, product} tuple or 
+  Gives the product with matched `slug` as {:ok, product} tuple or
   returns an {:error, :not_found} tuple if product is not found.
   """
   @spec product_by_slug(String.t()) :: map
@@ -187,5 +189,13 @@ defmodule SnitchApi.ProductsContext do
         _ ->
           query
       end
+  end
+
+  def extend_query(query, params, key, allowables // @allowables) do
+    if key in allowables do
+      from(q in query, where: ilike(q.key, ^"%#{params["filter"][key]}%"))
+    else
+      query
+    end
   end
 end
