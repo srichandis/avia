@@ -7,7 +7,7 @@ defmodule SnitchApi.ProductsContext do
 
   import Ecto.Query, only: [from: 2, order_by: 2]
 
-  @allowables ~w(name taxon_id brand_id)
+  @allowables ~w(name taxon_id brand_id)a
 
   @doc """
   List out all the products
@@ -181,21 +181,21 @@ defmodule SnitchApi.ProductsContext do
           order_by(Product, asc: :name)
       end
 
-    query =
-      case params["filter"] do
-        %{"name" => filter} ->
-          from(p in query, where: ilike(p.name, ^"%#{filter}%"))
-
-        _ ->
-          query
-      end
+    filter_query(query, params["filter"], @allowables)
   end
 
-  def extend_query(query, params, key, allowables // @allowables) do
-    if key in allowables do
-      from(q in query, where: ilike(q.key, ^"%#{params["filter"][key]}%"))
-    else
-      query
-    end
+  def filter_query(filter_query, filter_params, allowables) do
+    filter_params =
+      filter_params
+      |> Enum.into([], fn x -> {String.to_atom(elem(x, 0)), get_value(elem(x, 1))} end)
+      |> Enum.reject(fn x -> elem(x, 0) not in allowables end)
+
+    from(q in filter_query, where: ^filter_params)
   end
+
+  defp get_value("true"), do: true
+
+  defp get_value("false"), do: false
+
+  defp get_value(value), do: value
 end
