@@ -7,14 +7,16 @@ defmodule SnitchApi.ProductsContext do
 
   import Ecto.Query, only: [from: 2, order_by: 2]
 
-  @allowables ~w(name taxon_id brand_id)a
+  @filter_allowables ~w(taxon_id brand_id is_active)a
+  @partial_search_allowables ~w(name slug)a
 
   @doc """
   List out all the products
   """
   def list_products(conn, params) do
     query = define_query(params)
-    query = from(p in query, where: p.is_active == true)
+    # query = from(p in query, where: p.is_active == true)
+
     page = create_page(query, %{}, conn)
     products = paginate_collection(query, params)
     {products, page}
@@ -181,16 +183,19 @@ defmodule SnitchApi.ProductsContext do
           order_by(Product, asc: :name)
       end
 
-    filter_query(query, params["filter"], @allowables)
+    filter_query(query, params["filter"], @filter_allowables)
+    |> like_query(params["filter"], @partial_search_allowables)
   end
 
-  def filter_query(filter_query, filter_params, allowables) do
+  def filter_query(query, nil, _allowables), do: query
+
+  def filter_query(query, filter_params, allowables) do
     filter_params =
       filter_params
       |> Enum.into([], fn x -> {String.to_atom(elem(x, 0)), get_value(elem(x, 1))} end)
       |> Enum.reject(fn x -> elem(x, 0) not in allowables end)
 
-    from(q in filter_query, where: ^filter_params)
+    from(q in query, where: ^filter_params)
   end
 
   defp get_value("true"), do: true
@@ -198,4 +203,28 @@ defmodule SnitchApi.ProductsContext do
   defp get_value("false"), do: false
 
   defp get_value(value), do: value
+
+  def like_query(query, filter_params, allowables) do
+    filter_params =
+      filter_params
+      |> Enum.into([], fn x -> {String.to_atom(elem(x, 0)), get_value(elem(x, 1))} end)
+      |> Enum.reject(fn x -> elem(x, 0) not in allowables end)
+
+    Enum.reduce(filter_params, query, fn {key, value}, query ->
+      str_key = to_string(key)
+      from(q in query, where: like(fragment("CAST(? AS TEXT)", ^str_key), ^"%#{value}%"))
+    end)
+  end
+
+  def to_like_fragment({key, value}) do
+    str_key = to_string(key)
+
+    quote do
+      fragment("ilike(^?, ^?)", unquote(str_key), unquote(value))
+    end
+  end
+
+  def extend_like_query(query, key, value) do
+    from(q in query, where: like(fragment("CAST(? AS TEXT)", ^key), ^"%#{value}%"))
+  end
 end
