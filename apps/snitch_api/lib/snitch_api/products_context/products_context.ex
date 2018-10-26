@@ -210,21 +210,8 @@ defmodule SnitchApi.ProductsContext do
       |> Enum.into([], fn x -> {String.to_atom(elem(x, 0)), get_value(elem(x, 1))} end)
       |> Enum.reject(fn x -> elem(x, 0) not in allowables end)
 
-    Enum.reduce(filter_params, query, fn {key, value}, query ->
-      str_key = to_string(key)
-      from(q in query, where: like(fragment("CAST(? AS TEXT)", ^str_key), ^"%#{value}%"))
+    Enum.reduce(filter_params, query, fn {key, value}, nquery ->
+      from(q in nquery, where: ilike(fragment("CAST(? AS TEXT)", field(q, ^key)), ^"%#{value}%"))
     end)
-  end
-
-  def to_like_fragment({key, value}) do
-    str_key = to_string(key)
-
-    quote do
-      fragment("ilike(^?, ^?)", unquote(str_key), unquote(value))
-    end
-  end
-
-  def extend_like_query(query, key, value) do
-    from(q in query, where: like(fragment("CAST(? AS TEXT)", ^key), ^"%#{value}%"))
   end
 end
