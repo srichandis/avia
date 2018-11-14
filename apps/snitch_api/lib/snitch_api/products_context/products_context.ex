@@ -19,7 +19,7 @@ defmodule SnitchApi.ProductsContext do
   end
 
   @doc """
-  Gives the product with matched `slug` as {:ok, product} tuple or 
+  Gives the product with matched `slug` as {:ok, product} tuple or
   returns an {:error, :not_found} tuple if product is not found.
   """
   @spec product_by_slug(String.t()) :: map
